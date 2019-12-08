@@ -1,0 +1,6 @@
+[submodule "thirdparty/hhvm"]
+	path = thirdparty/hhvm
+	url = git@github.com:tstarling/thread-safe-lru.git
+[submodule "thirdparty/tbb"]
+	path = thirdparty/tbb
+	url = git@github.com:metopa/tbb.git
