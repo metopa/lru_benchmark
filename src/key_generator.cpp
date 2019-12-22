@@ -7,7 +7,7 @@
 class NormalGenerator final : public KeyGenerator {
   public:
     NormalGenerator(lru_key_t max_key)
-        : max_key(max_key), gen(42), dist(max_key / 2., 0.315 * max_key / 2) {}
+            : max_key(max_key), gen(42), dist(max_key / 2., 0.315 * max_key / 2) {}
 
     std::string name() const override { return "normal"; }
 
@@ -15,18 +15,22 @@ class NormalGenerator final : public KeyGenerator {
 
     void setThread(size_t id, size_t count) override { gen.seed(id); }
 
-    lru_key_t getKey() override {
-        return std::min(static_cast<lru_key_t>(std::abs(dist(gen))), max_key);
+    KeySequence getKey() override {
+        return {std::min(static_cast<lru_key_t>(std::abs(dist(gen))), max_key), 1};
     }
 
-    lru_key_t                        max_key;
-    std::mt19937                     gen;
+    uint64_t getUniqueCount() const override {
+        return max_key;
+    }
+
+    lru_key_t max_key;
+    std::mt19937 gen;
     std::normal_distribution<double> dist;
 };
 
 class UniformGenerator final : public KeyGenerator {
   public:
-    UniformGenerator(lru_key_t max_key) : gen(42), dist(0, max_key - 1) {}
+    UniformGenerator(lru_key_t max_key) : unique_count(max_key), gen(42), dist(0, max_key - 1) {}
 
     std::string name() const override { return "uniform"; }
 
@@ -34,15 +38,21 @@ class UniformGenerator final : public KeyGenerator {
 
     void setThread(size_t id, size_t count) override { gen.seed(id); }
 
-    lru_key_t getKey() override { return dist(gen); }
+    KeySequence getKey() override { return {dist(gen), 1}; }
 
-    std::mt19937                             gen;
+    uint64_t getUniqueCount() const override {
+        return unique_count;
+    }
+
+    lru_key_t unique_count;
+    std::mt19937 gen;
     std::uniform_int_distribution<lru_key_t> dist;
 };
 
 class ExpGenerator final : public KeyGenerator {
   public:
-    ExpGenerator(size_t capacity, float alpha) : gen(42), dist(getLambda(capacity, alpha)) {}
+    ExpGenerator(size_t capacity, float alpha) : unique_count(capacity * alpha), gen(42),
+                                                 dist(getLambda(capacity, alpha)) {}
 
     std::string name() const override { return "exp"; }
 
@@ -50,12 +60,17 @@ class ExpGenerator final : public KeyGenerator {
 
     void setThread(size_t id, size_t count) override { gen.seed(id); }
 
-    lru_key_t getKey() override { return static_cast<lru_key_t>(dist(gen)); }
+    KeySequence getKey() override { return {static_cast<lru_key_t>(dist(gen)), 1}; }
 
     static double getLambda(size_t interval, double area_under_interval) {
         return -std::log(1 - area_under_interval) / interval;
     }
 
+    uint64_t getUniqueCount() const override {
+        return unique_count;
+    }
+
+    lru_key_t unique_count;
     std::mt19937 gen;
     std::exponential_distribution<double> dist;
 };
@@ -72,7 +87,7 @@ class SameGenerator final : public KeyGenerator {
 
     void setThread(size_t thread, size_t count) override {}
 
-    lru_key_t getKey() override { return state_++; }
+    KeySequence getKey() override { return {state_++, 1}; }
 
     size_t state_;
 };
@@ -87,7 +102,7 @@ class VarSameGenerator final : public KeyGenerator {
 
     void setThread(size_t id, size_t count) override { gen.seed(id); }
 
-    lru_key_t getKey() override { return ++state_ + dist(gen); }
+    KeySequence getKey() override { return {++state_ + dist(gen), 1}; }
 
     std::mt19937 gen;
     std::uniform_int_distribution<lru_key_t> dist;
@@ -106,7 +121,7 @@ class DisjointGenerator final : public KeyGenerator {
 
     void setThread(size_t thread, size_t count) override { state_ = thread * (1 << 30); }
 
-    lru_key_t getKey() override { return state_++; }
+    KeySequence getKey() override { return {state_++, 1}; }
 
     size_t state_;
 };
@@ -118,23 +133,10 @@ class TraceGenerator final : public KeyGenerator {
     size_t thread_count_;
     size_t current_index_;
 
-    static std::string getTracePath(const std::string& trace_name) {
-        static std::string traces_dir = "traces/";
-        static std::map<std::string, std::string> trace_lookup{{"mm", "mm32.bin"},
-                                                               {"lu", "lu.bin"},
-                                                               {"zipf", "zipf_09.bin"},
-                                                               {"wiki", "wiki_dataset.bin"}};
-        auto it = trace_lookup.find(trace_name);
-        if (it == trace_lookup.end()) {
-            throw std::runtime_error("Unknown trace: " + trace_name);
-        }
-        return traces_dir + it->second;
-    }
-
   public:
     TraceGenerator(const std::string& traceName) :
-    trace_name_(traceName), trace_(std::make_shared<const Trace>(readTrace(getTracePath(trace_name_)))),
-    thread_id_(0), thread_count_(1), current_index_(0) {}
+            trace_name_(traceName), trace_(std::make_shared<const Trace>(readTrace(trace_name_))),
+            thread_id_(0), thread_count_(1), current_index_(0) {}
 
 
     std::string name() const override {
@@ -151,13 +153,17 @@ class TraceGenerator final : public KeyGenerator {
         current_index_ = id;
     }
 
-    lru_key_t getKey() override {
+    KeySequence getKey() override {
         if (current_index_ >= trace_->data.size()) {
             current_index_ = thread_id_;
         }
-        lru_key_t res = trace_->data[current_index_];
+        KeySequence res = trace_->data[current_index_];
         current_index_ += thread_count_;
         return res;
+    }
+
+    uint64_t getUniqueCount() const override {
+        return trace_->distinct_count;
     }
 };
 
@@ -181,9 +187,8 @@ KeyGenerator::ptr_t KeyGenerator::factory(RandomBenchmarkApp& b, const std::stri
     if (name == "exp") {
         return ptr_t(new ExpGenerator(b.capacity, 0.8));
     }
-    if (name.substr(0, 6) == "trace:") {
-        std::string trace_name = name.substr(6);
-        return ptr_t(new TraceGenerator(trace_name));
+    if (name.substr(0, 7) == "traces/") {
+        return ptr_t(new TraceGenerator(name));
     }
     throw std::runtime_error("Unknown generator: " + name);
 }

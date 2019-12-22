@@ -4,13 +4,15 @@
 
 #include "CLI11.hpp"
 
-struct Trace {
-    std::vector<uint64_t> data;
-    uint64_t distinct_count;
+struct KeySequence {
+    uint64_t start_index;
+    uint64_t count;
+};
+static_assert(sizeof(KeySequence) == 16);
 
-    explicit Trace(std::vector<uint64_t> data_args) : data(std::move(data_args)) {
-        distinct_count = std::set<uint64_t>(data.begin(), data.end()).size();
-    }
+struct Trace {
+    std::vector<KeySequence> data;
+    uint64_t distinct_count;
 };
 
 const Trace& readTrace(const std::string& path);

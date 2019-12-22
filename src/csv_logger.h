@@ -23,7 +23,7 @@ class CsvLogger {
     void log(const std::string& run_name, const std::string& run_tag, unsigned threads,
              int payload_level, const KeyGenerator::ptr_t& gen, Container& cont,
              size_t iterations, size_t hits, std::chrono::duration<double> duration,
-             float pull_threshold, float purge_threshold,
+             float pull_threshold, float purge_threshold, uint64_t unique_count,
              bool log_to_console = true, std::ostream* out = nullptr) {
         if (out == nullptr) {
             out = &output_;
@@ -60,11 +60,10 @@ class CsvLogger {
         if (log_to_console) {
             if (verbose_) {
                 verbose_log(run_name, run_tag, threads, payload_level, gen, cont, iterations,
-                            hits, duration, pull_threshold, purge_threshold, &std::cout);
+                            hits, duration, pull_threshold, purge_threshold, unique_count, &std::cout);
             } else {
                 log(run_name, run_tag, threads, payload_level, gen, cont, iterations, hits, duration,
-                    pull_threshold, purge_threshold,
-                    false, &std::cout);
+                    pull_threshold, purge_threshold, unique_count, false, &std::cout);
             }
         }
     }
@@ -91,7 +90,7 @@ class CsvLogger {
     void verbose_log(const std::string& run_name, const std::string& run_tag, unsigned threads,
                      int payload_level, const KeyGenerator::ptr_t& gen, Container& cont,
                      size_t iterations, size_t hits, std::chrono::duration<double> duration,
-                     float pull_threshold, float purge_threshold, std::ostream* out = nullptr) {
+                     float pull_threshold, float purge_threshold, uint64_t unique_count, std::ostream* out = nullptr) {
         const char* spacer = "     ";
         if (out == nullptr) {
             out = &output_;
@@ -108,8 +107,13 @@ class CsvLogger {
             *out << " (" << run_tag << ")";
         }
         *out << "/" << gen->name() << '\n';
-        *out << "Memory/capacity:           " << spacer << prettyPrintSize(mem.total_mem) << "/"
-             << mem.capacity << "\n";
+        if (unique_count) {
+            *out << "Memory/capacity:           " << spacer << prettyPrintSize(mem.total_mem) << "/"
+                 << mem.capacity << " [" << (mem.capacity * 100. / unique_count) << "% of total]\n";
+        } else {
+            *out << "Memory/capacity:           " << spacer << prettyPrintSize(mem.total_mem) << "/"
+                 << mem.capacity << "\n";
+        }
         *out << "Thresholds:                " << spacer << pull_threshold << "/" << purge_threshold << "\n";
         //*out << "F/I/E/HA/HR:               " << spacer << (perf.find - perf.insert) / threads << "/"
         //     << perf.insert / threads << "/" << perf.evict / threads << "/"

@@ -33,4 +33,4 @@ cmake-build-*
 
 venv
 
-# traces/wiki_dataset\.bin
+*.blis

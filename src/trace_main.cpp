@@ -25,7 +25,6 @@ void backendTest() {
 }
 
 void hyperparameterTest() {
-
     const std::string base_path = "../traces/";
 
     TraceBenchmarkApp app;
