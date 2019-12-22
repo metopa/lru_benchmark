@@ -77,8 +77,8 @@ class HashFixed : public ContainerBase<Config, HashFixed<Config>, true> {
 
     struct Element {
         std::atomic<index_t> bucket_next; //-1 => tail of bucket
-        key_t   key;
-        value_t value;
+        key_t                key;
+        value_t              value;
     };
 
   public:
@@ -155,9 +155,7 @@ class HashFixed : public ContainerBase<Config, HashFixed<Config>, true> {
     /// cache to stdout. Useful for debugging only.
     void dump();
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {
@@ -186,7 +184,7 @@ class HashFixed : public ContainerBase<Config, HashFixed<Config>, true> {
 
         // insert newelem in bucket at the head
         index_t wbuck = whichBucket(k);
-        index_t next = bucket_[wbuck].load();
+        index_t next  = bucket_[wbuck].load();
         do {
             storage_[newelem].bucket_next.store(next, std::memory_order_relaxed);
         } while (!bucket_[wbuck].compare_exchange_weak(next, newelem));
@@ -217,7 +215,7 @@ class HashFixed : public ContainerBase<Config, HashFixed<Config>, true> {
     int whichBucket(const key_t& k) const { return hasher_(k) % bucket_count_; }
 
     std::atomic<index_t>* bucket_; // give head of bucket
-    Element* storage_;
+    Element*              storage_;
 
     size_t bucket_count_;
 

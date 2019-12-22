@@ -12,7 +12,7 @@ static_assert(sizeof(KeySequence) == 16);
 
 struct Trace {
     std::vector<KeySequence> data;
-    uint64_t distinct_count;
+    uint64_t                 distinct_count;
 };
 
 const Trace& readTrace(const std::string& path);
@@ -50,17 +50,16 @@ struct RandomBenchmarkApp {
     void runImpl();
 };
 
-
 struct TraceBenchmarkApp {
-    CLI::App app;
+    CLI::App    app;
     std::string log_file;
     std::string trace_file;
     std::string backend;
-    size_t iterations;
-    size_t capacity;
-    double pull_threshold;
-    double purge_threshold;
-    bool verbose;
+    size_t      iterations;
+    size_t      capacity;
+    double      pull_threshold;
+    double      purge_threshold;
+    bool        verbose;
 
     TraceBenchmarkApp();
 

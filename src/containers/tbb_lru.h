@@ -54,7 +54,7 @@ class TbbLRU : public ContainerBase<Config, TbbLRU<Config>, false> {
     template <typename Producer, typename Consumer>
     bool consumeCachedOrCompute(const key_t& key, const Producer& producer, Consumer& consumer) {
         this->profile_stats_.find++;
-        bool miss = false;
+        bool miss             = false;
         auto proxied_producer = [&] {
             this->profile_stats_.insert++;
             miss = true;
@@ -66,9 +66,7 @@ class TbbLRU : public ContainerBase<Config, TbbLRU<Config>, false> {
         return !miss;
     }
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

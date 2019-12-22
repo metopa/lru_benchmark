@@ -2,8 +2,8 @@
 #include <iostream>
 
 #include "benchmark.h"
-#include "utility.h"
 #include "key_generator.h"
+#include "utility.h"
 
 void backendTest() {
     const std::string base_path = "../traces/";

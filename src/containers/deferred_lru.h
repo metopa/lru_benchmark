@@ -380,7 +380,7 @@ class DeferredLRU : public ContainerBase<Config, DeferredLRU<Config>, true> {
         profile_stats_.insert++;
 
         // reserving space for the element beforehand
-        //this->current_element_count_++;
+        // this->current_element_count_++;
 
         // get new node from pool
         // if pool is empty, we may trigger purge op to find some
@@ -396,7 +396,7 @@ class DeferredLRU : public ContainerBase<Config, DeferredLRU<Config>, true> {
             deleter_.onDelete(std::move(node->key), std::move(node->value));
             disposeNode(node);
             return;
-            //this->current_element_count_--;
+            // this->current_element_count_--;
         }
 
         addNodeToLruHead(node);
@@ -472,8 +472,8 @@ class DeferredLRU : public ContainerBase<Config, DeferredLRU<Config>, true> {
             }
 
             if (purge_request_) {
-            	purgeOld(purge_threshold_);
-            	purge_request_ = false;
+                purgeOld(purge_threshold_);
+                purge_request_ = false;
             }
 
             lru_lock_.unlock();
@@ -543,7 +543,7 @@ class DeferredLRU : public ContainerBase<Config, DeferredLRU<Config>, true> {
                     removeNodeFromLru(typed_node);
 
                     deleter_.onDelete(std::move(typed_node->key), std::move(typed_node->value));
-                    //this->current_element_count_--;
+                    // this->current_element_count_--;
                     disposeNode(node);
 
                     nodes_freed++;

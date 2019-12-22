@@ -87,7 +87,6 @@ class LRUCache : public ContainerBase<Config, LRUCache<Config, IgnoreBitsInHash>
         allocateMemory(capacity, is_item_capacity);
     }
 
-
     ~LRUCache() { releaseMemory(); }
 
     static const char* name() { return "LRU"; }
@@ -164,9 +163,7 @@ class LRUCache : public ContainerBase<Config, LRUCache<Config, IgnoreBitsInHash>
     /// cache to stdout. Useful for debugging only.
     void dump();
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

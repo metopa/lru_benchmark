@@ -49,9 +49,8 @@ class HhvmLRU : public ContainerBase<Config, HhvmLRU<Config>, false> {
         };
 
         using map_t = tbb::concurrent_hash_map<key_t, map_node_t>;
-        //TODO Fix size
-        return sizeof(typename map_t::value_type) +
-               sizeof(list_node_t);
+        // TODO Fix size
+        return sizeof(typename map_t::value_type) + sizeof(list_node_t);
     }
 
     void allocateMemory(size_t capacity, bool is_item_capacity) {
@@ -78,9 +77,7 @@ class HhvmLRU : public ContainerBase<Config, HhvmLRU<Config>, false> {
         return false;
     }
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

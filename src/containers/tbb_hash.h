@@ -86,9 +86,7 @@ class TbbHash : public ContainerBase<Config, TbbHash<Config>, true> {
         return false;
     }
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

@@ -36,16 +36,16 @@ class Payload {
     }
 
     volatile int level_;
-    uint64_t user_data_;
+    uint64_t     user_data_;
 };
 
 template <typename Container>
 void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int time_limit);
 
 RandomBenchmarkApp::RandomBenchmarkApp()
-        : app(help(), "LRU Benchmark"), payload_level(5), threads(1), iterations(1),
-          limit_max_key(false), is_item_capacity(false), capacity(0), pull_threshold(0.1),
-          purge_threshold(0.1), verbose(false), print_freq(1000), time_limit(60), profile(false) {
+    : app(help(), "LRU Benchmark"), payload_level(5), threads(1), iterations(1),
+      limit_max_key(false), is_item_capacity(false), capacity(0), pull_threshold(0.1),
+      purge_threshold(0.1), verbose(false), print_freq(1000), time_limit(60), profile(false) {
     app.add_option("--log-file,-L", log_file)->required();
     app.add_option("--name,-N", run_name)->required();
     app.add_option("--info,-I", run_info);
@@ -54,7 +54,7 @@ RandomBenchmarkApp::RandomBenchmarkApp()
     app.add_set_ignore_case("--backend,-B", backend,
                             {"dummy", "hash", "lru", "concurrent", "deferred", "tbb", "tbb_hash",
                              "hhvm", "b_lru", "b_concurrent", "b_deferred"})
-            ->required();
+        ->required();
     app.add_option("--threads,-t", threads, "", true)->default_val("1");
     auto c = app.add_option("--capacity, -c", capacity);
     c->check([&](auto& s) {
@@ -90,20 +90,18 @@ int RandomBenchmarkApp::parse(int argc, char** argv) {
     };
 }
 
-void RandomBenchmarkApp::run() {
-    runImpl<false>();
-}
+void RandomBenchmarkApp::run() { runImpl<false>(); }
 
 template <bool EnableProfile>
 void RandomBenchmarkApp::runImpl() {
     try {
         using config_t = ContainerConfig<lru_key_t, lru_value_t, std::hash<lru_key_t>, std::less<>,
-                OpenMPLock, EmptyDeletePolicy, 4, false, EnableProfile>;
+                                         OpenMPLock, EmptyDeletePolicy, 4, false, EnableProfile>;
 
         CsvLogger l(log_file, verbose);
 
         volatile size_t tmp = capacity;
-        capacity = tmp;
+        capacity            = tmp;
 
         if (backend == "dummy") {
             DummyCache<config_t> lru(capacity, is_item_capacity);
@@ -152,7 +150,7 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
     const auto expected_payload = Payload(b.payload_level, 0)()[0];
 
     auto max_capacity =
-            b.is_item_capacity
+        b.is_item_capacity
             ? cont.memStats().capacity
             : (cont.memStats().total_mem / (sizeof(lru_key_t) + sizeof(lru_value_t)));
     auto max_key = cont.memStats().capacity / 100 * 99;
@@ -164,7 +162,7 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
     bool cancel_flag = false;
 
     size_t passed_iterations = 0;
-    size_t total_hits = 0;
+    size_t total_hits        = 0;
 
 #pragma omp parallel num_threads(b.threads) \
     shared(generator, b, cont, start, cancel_flag, passed_iterations)
@@ -175,9 +173,9 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
 #pragma omp single
         { start = std::chrono::system_clock::now(); };
 
-        size_t iter = 0;
-        size_t hits = 0;
-        bool private_cancel_flag = false;
+        size_t iter                = 0;
+        size_t hits                = 0;
+        bool   private_cancel_flag = false;
 
         for (; iter < b.iterations && !private_cancel_flag; iter++) {
             KeySequence seq = private_gen->getKey();
@@ -197,13 +195,13 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
                         std::cout << int(dur.count()) << "s " << iter << '/' << b.iterations << " "
                                   << time_limit << '\r' << std::flush;
                         if (dur.count() > time_limit) {
-                            #pragma omp atomic write
-                            cancel_flag = true;
+#pragma omp atomic write
+                            cancel_flag         = true;
                             private_cancel_flag = true;
                             break;
                         }
                     } else {
-                        #pragma omp atomic read
+#pragma omp atomic read
                         private_cancel_flag = cancel_flag;
                         if (private_cancel_flag) {
                             break;
@@ -220,11 +218,12 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
         total_hits += hits;
     }
 
-    auto stop = std::chrono::system_clock::now();
-    duration<double> dur = stop - start;
+    auto             stop = std::chrono::system_clock::now();
+    duration<double> dur  = stop - start;
 
     logger.log(b.run_name, b.run_info, b.threads, b.payload_level, generator, cont,
-               passed_iterations, total_hits, dur, b.pull_threshold, b.purge_threshold, generator->getUniqueCount());
+               passed_iterations, total_hits, dur, b.pull_threshold, b.purge_threshold,
+               generator->getUniqueCount());
     // cont.memStats().print(std::cout);
 }
 
@@ -232,15 +231,15 @@ template <typename Container>
 void traceBenchmark(TraceBenchmarkApp& b, Container& cont, TraceCsvLogger& logger);
 
 TraceBenchmarkApp::TraceBenchmarkApp()
-        : app(help(), "Trace Benchmark"), iterations(1), capacity(0), pull_threshold(0.1),
-          purge_threshold(0.1), verbose(false) {
+    : app(help(), "Trace Benchmark"), iterations(1), capacity(0), pull_threshold(0.1),
+      purge_threshold(0.1), verbose(false) {
     app.add_option("--log-file,-L", log_file)->required();
     app.add_option("--trace-file,-t", trace_file)->required();
     app.add_flag("--verbose,-v", verbose);
     app.add_set_ignore_case("--backend,-B", backend,
                             {"dummy", "hash", "lru", "concurrent", "deferred", "tbb", "tbb_hash",
                              "hhvm", "b_lru", "b_concurrent", "b_deferred"})
-            ->required();
+        ->required();
     app.add_option("--capacity, -c", capacity);
     app.add_option("--iterations,-i", iterations);
     app.add_option("--pull-thrs", pull_threshold);
@@ -263,12 +262,12 @@ int TraceBenchmarkApp::parse(int argc, char** argv) {
 void TraceBenchmarkApp::run() {
     try {
         using config_t = ContainerConfig<lru_key_t, lru_value_t, std::hash<lru_key_t>, std::less<>,
-                OpenMPLock, EmptyDeletePolicy, 4, false, true>;
+                                         OpenMPLock, EmptyDeletePolicy, 4, false, true>;
 
         TraceCsvLogger l(log_file, verbose);
 
-        volatile size_t tmp = capacity;
-        capacity = tmp;
+        volatile size_t tmp             = capacity;
+        capacity                        = tmp;
         constexpr bool is_item_capacity = true;
 
         if (backend == "dummy") {
@@ -339,8 +338,8 @@ Trace readTraceFileVersion2(std::array<uint64_t, 4>& header, std::vector<uint64_
 Trace readTraceFile(std::ifstream& file) {
     std::array<uint64_t, 4> header;
 
-    auto read_bytes = file.readsome(reinterpret_cast<char*>(header.data()),
-                                    header.size() * sizeof(header[0]));
+    auto read_bytes =
+        file.readsome(reinterpret_cast<char*>(header.data()), header.size() * sizeof(header[0]));
 
     if (read_bytes != header.size() * sizeof(header[0])) {
         throw std::runtime_error("Error reading trace header");
@@ -348,26 +347,24 @@ Trace readTraceFile(std::ifstream& file) {
 
     std::vector<uint64_t> data;
     data.resize(header[1] * header[0]); // x2 for version 2
-    file.read(reinterpret_cast<char*>(data.data()),
-              data.size() * sizeof(data[0]));
+    file.read(reinterpret_cast<char*>(data.data()), data.size() * sizeof(data[0]));
     if (!file) {
         throw std::runtime_error("Error reading trace header");
     }
 
     switch (header[0]) {
-        case 1:
-            return readTraceFileVersion1(header, data);
-        case 2:
-            return readTraceFileVersion2(header, data);
-        default:
-            throw std::runtime_error("Unsupported trace version " + std::to_string(data[0]));
-
+    case 1:
+        return readTraceFileVersion1(header, data);
+    case 2:
+        return readTraceFileVersion2(header, data);
+    default:
+        throw std::runtime_error("Unsupported trace version " + std::to_string(data[0]));
     }
 }
 
 const Trace& readTrace(const std::string& path) {
     static std::map<std::string, Trace> cache;
-    auto it = cache.find(path);
+    auto                                it = cache.find(path);
     if (it == cache.end()) {
         std::ifstream file(path, std::ifstream::binary);
         if (!file.is_open()) {
@@ -397,11 +394,16 @@ void traceBenchmark(TraceBenchmarkApp& b, Container& cont, TraceCsvLogger& logge
         }
         for (size_t i = 0; i < trace.data.size(); i++) {
             for (size_t j = 0; j < trace.data[i].count; j++) {
-                lru_key_t key = trace.data[i].start_index + j;
+                lru_key_t   key = trace.data[i].start_index + j;
                 lru_value_t value;
                 lru_value_t expected_value{{key, key / 2}};
 
-                cont.consumeCachedOrCompute(key, [=] { return lru_value_t{{key, key}}; }, value);
+                cont.consumeCachedOrCompute(
+                    key,
+                    [=] {
+                        return lru_value_t{{key, key}};
+                    },
+                    value);
                 if (value != expected_value) {
                     std::cerr << "Wrong value: " << value << " != " << expected_value << std::endl;
                 }
@@ -413,8 +415,8 @@ void traceBenchmark(TraceBenchmarkApp& b, Container& cont, TraceCsvLogger& logge
         }
     }
 
-    auto stop = std::chrono::system_clock::now();
-    duration<double> dur = stop - start;
+    auto             stop = std::chrono::system_clock::now();
+    duration<double> dur  = stop - start;
 
     logger.log("", b.trace_file, cont, trace.distinct_count, b.iterations, dur, b.pull_threshold,
                b.purge_threshold);

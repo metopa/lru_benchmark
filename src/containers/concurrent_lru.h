@@ -99,12 +99,12 @@ class ConcurrentLRU : public ContainerBase<Config, ConcurrentLRU<Config, IgnoreB
   public:
     explicit ConcurrentLRU(size_t capacity = 0, bool is_item_capacity = false) {
         allocateMemory(capacity, is_item_capacity);
-        #if TRACE_LOCKS
+#if TRACE_LOCKS
         std::cout << "pool_head: " << &pool_head_ << "\n";
         std::cout << "pool_tail: " << &pool_tail_ << "\n";
         std::cout << "lru_head:  " << &lru_head_ << "\n";
         std::cout << "lru_tail:  " << &lru_tail_ << "\n";
-        #endif
+#endif
     }
 
     ~ConcurrentLRU() { releaseMemory(); }
@@ -248,9 +248,7 @@ class ConcurrentLRU : public ContainerBase<Config, ConcurrentLRU<Config, IgnoreB
 
     void dump();
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

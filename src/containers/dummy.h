@@ -17,7 +17,9 @@ class DummyCache : public ContainerBase<Config, DummyCache<Config>, false> {
         allocateMemory(capacity, is_item_capacity);
     }
 
-    void allocateMemory(size_t capacity, bool is_item_capacity) { this->init(capacity, is_item_capacity); }
+    void allocateMemory(size_t capacity, bool is_item_capacity) {
+        this->init(capacity, is_item_capacity);
+    }
 
     static const char* name() { return "Dummy"; }
 
@@ -35,9 +37,7 @@ class DummyCache : public ContainerBase<Config, DummyCache<Config>, false> {
 
     void dump(){};
 
-    void resetProfiler() {
-        profile_stats_.reset();
-    }
+    void resetProfiler() { profile_stats_.reset(); }
 
   private:
     static size_t memSizeForElements(size_t count) {

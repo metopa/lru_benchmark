@@ -154,12 +154,12 @@ class OpenMPLock {
 
 struct TraceInfo {
     const char* filename;
-    size_t items;
+    size_t      items;
 };
 
 namespace traces {
-    constexpr TraceInfo mm{"mm32.bin", 1667};
-    constexpr TraceInfo lu{"lu.bin", 531};
-    constexpr TraceInfo zipf{"zipf_09.bin", 91356};
-    constexpr TraceInfo wiki{"wiki_dataset.bin", 7913592};
-}
+constexpr TraceInfo mm{"mm32.bin", 1667};
+constexpr TraceInfo lu{"lu.bin", 531};
+constexpr TraceInfo zipf{"zipf_09.bin", 91356};
+constexpr TraceInfo wiki{"wiki_dataset.bin", 7913592};
+} // namespace traces

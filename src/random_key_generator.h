@@ -7,7 +7,8 @@
 
 class ExponentialKeyGenerator {
   public:
-    ExponentialKeyGenerator(size_t seed, size_t interval, double area_under_interval, lru_key_t max_key)
+    ExponentialKeyGenerator(size_t seed, size_t interval, double area_under_interval,
+                            lru_key_t max_key)
         : interval_(interval), area_under_interval_(area_under_interval), max_key_(max_key),
           dist_(get_exp_lambda_for_area(interval, area_under_interval)), gen_(seed) {}
 
@@ -40,11 +41,12 @@ class ExponentialKeyGenerator {
 };
 
 inline void test_rnd(size_t interval, double area_under_interval) {
-    ExponentialKeyGenerator g(42, interval, area_under_interval, std::numeric_limits<lru_key_t>::max());
-    size_t             reps   = interval * 1000;
-    size_t             hits   = 0;
-    size_t             hits_2 = 0;
-    size_t             hits_0 = 0;
+    ExponentialKeyGenerator g(42, interval, area_under_interval,
+                              std::numeric_limits<lru_key_t>::max());
+    size_t                  reps   = interval * 1000;
+    size_t                  hits   = 0;
+    size_t                  hits_2 = 0;
+    size_t                  hits_0 = 0;
     for (int i = 0; i < reps; i++) {
         auto x = g();
         if (x <= interval / 2)

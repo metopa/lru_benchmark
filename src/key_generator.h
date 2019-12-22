@@ -1,8 +1,8 @@
 #pragma once
 
-#include <memory>
-#include "common.h"
 #include "benchmark.h"
+#include "common.h"
+#include <memory>
 
 class RandomBenchmarkApp;
 
@@ -14,14 +14,11 @@ class KeyGenerator : public std::enable_shared_from_this<KeyGenerator> {
 
     virtual ~KeyGenerator() = default;
 
-    virtual std::string name() const = 0;
-    virtual ptr_t clone() const = 0;
-    virtual void setThread(size_t id, size_t count) = 0;
+    virtual std::string name() const                       = 0;
+    virtual ptr_t       clone() const                      = 0;
+    virtual void        setThread(size_t id, size_t count) = 0;
 
     virtual KeySequence getKey() = 0;
 
-    virtual uint64_t getUniqueCount() const {
-        return 0;
-    }
+    virtual uint64_t getUniqueCount() const { return 0; }
 };
-

@@ -7,7 +7,7 @@
 class NormalGenerator final : public KeyGenerator {
   public:
     NormalGenerator(lru_key_t max_key)
-            : max_key(max_key), gen(42), dist(max_key / 2., 0.315 * max_key / 2) {}
+        : max_key(max_key), gen(42), dist(max_key / 2., 0.315 * max_key / 2) {}
 
     std::string name() const override { return "normal"; }
 
@@ -19,12 +19,10 @@ class NormalGenerator final : public KeyGenerator {
         return {std::min(static_cast<lru_key_t>(std::abs(dist(gen))), max_key), 1};
     }
 
-    uint64_t getUniqueCount() const override {
-        return max_key;
-    }
+    uint64_t getUniqueCount() const override { return max_key; }
 
-    lru_key_t max_key;
-    std::mt19937 gen;
+    lru_key_t                        max_key;
+    std::mt19937                     gen;
     std::normal_distribution<double> dist;
 };
 
@@ -40,19 +38,17 @@ class UniformGenerator final : public KeyGenerator {
 
     KeySequence getKey() override { return {dist(gen), 1}; }
 
-    uint64_t getUniqueCount() const override {
-        return unique_count;
-    }
+    uint64_t getUniqueCount() const override { return unique_count; }
 
-    lru_key_t unique_count;
-    std::mt19937 gen;
+    lru_key_t                                unique_count;
+    std::mt19937                             gen;
     std::uniform_int_distribution<lru_key_t> dist;
 };
 
 class ExpGenerator final : public KeyGenerator {
   public:
-    ExpGenerator(size_t capacity, float alpha) : unique_count(capacity * alpha), gen(42),
-                                                 dist(getLambda(capacity, alpha)) {}
+    ExpGenerator(size_t capacity, float alpha)
+        : unique_count(capacity * alpha), gen(42), dist(getLambda(capacity, alpha)) {}
 
     std::string name() const override { return "exp"; }
 
@@ -66,12 +62,10 @@ class ExpGenerator final : public KeyGenerator {
         return -std::log(1 - area_under_interval) / interval;
     }
 
-    uint64_t getUniqueCount() const override {
-        return unique_count;
-    }
+    uint64_t getUniqueCount() const override { return unique_count; }
 
-    lru_key_t unique_count;
-    std::mt19937 gen;
+    lru_key_t                             unique_count;
+    std::mt19937                          gen;
     std::exponential_distribution<double> dist;
 };
 
@@ -104,9 +98,9 @@ class VarSameGenerator final : public KeyGenerator {
 
     KeySequence getKey() override { return {++state_ + dist(gen), 1}; }
 
-    std::mt19937 gen;
+    std::mt19937                             gen;
     std::uniform_int_distribution<lru_key_t> dist;
-    size_t state_;
+    size_t                                   state_;
 };
 
 class DisjointGenerator final : public KeyGenerator {
@@ -127,29 +121,24 @@ class DisjointGenerator final : public KeyGenerator {
 };
 
 class TraceGenerator final : public KeyGenerator {
-    std::string trace_name_;
+    std::string                  trace_name_;
     std::shared_ptr<const Trace> trace_;
-    size_t thread_id_;
-    size_t thread_count_;
-    size_t current_index_;
+    size_t                       thread_id_;
+    size_t                       thread_count_;
+    size_t                       current_index_;
 
   public:
-    TraceGenerator(const std::string& traceName) :
-            trace_name_(traceName), trace_(std::make_shared<const Trace>(readTrace(trace_name_))),
-            thread_id_(0), thread_count_(1), current_index_(0) {}
+    TraceGenerator(const std::string& traceName)
+        : trace_name_(traceName), trace_(std::make_shared<const Trace>(readTrace(trace_name_))),
+          thread_id_(0), thread_count_(1), current_index_(0) {}
 
+    std::string name() const override { return "trace:" + trace_name_; }
 
-    std::string name() const override {
-        return "trace:" + trace_name_;
-    }
-
-    ptr_t clone() const override {
-        return std::make_shared<TraceGenerator>(*this);
-    }
+    ptr_t clone() const override { return std::make_shared<TraceGenerator>(*this); }
 
     void setThread(size_t id, size_t count) override {
-        thread_id_ = id;
-        thread_count_ = count;
+        thread_id_     = id;
+        thread_count_  = count;
         current_index_ = id;
     }
 
@@ -162,9 +151,7 @@ class TraceGenerator final : public KeyGenerator {
         return res;
     }
 
-    uint64_t getUniqueCount() const override {
-        return trace_->distinct_count;
-    }
+    uint64_t getUniqueCount() const override { return trace_->distinct_count; }
 };
 
 KeyGenerator::ptr_t KeyGenerator::factory(RandomBenchmarkApp& b, const std::string& name,
