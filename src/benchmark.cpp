@@ -43,7 +43,7 @@ template <typename Container>
 void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int time_limit);
 
 RandomBenchmarkApp::RandomBenchmarkApp()
-    : app(help(), "LRU Benchmark"), payload_level(5), threads(1), iterations(1),
+    : app(help(), "LRU Benchmark"), payload_level(5), threads(1),
       limit_max_key(false), is_item_capacity(false), capacity(0), pull_threshold(0.1),
       purge_threshold(0.1), verbose(false), print_freq(1000), time_limit(60), profile(false) {
     app.add_option("--log-file,-L", log_file)->required();
@@ -67,7 +67,6 @@ RandomBenchmarkApp::RandomBenchmarkApp()
         return std::string();
     });
     c->excludes(m);
-    app.add_option("--iterations,-i", iterations)->required();
     app.add_option("--print-freq,-q", print_freq);
     app.add_option("--payload,-p", payload_level);
     app.add_option("--fix-max-key", limit_max_key);
@@ -165,7 +164,7 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
     size_t total_hits        = 0;
 
 #pragma omp parallel num_threads(b.threads) \
-    shared(generator, b, cont, start, cancel_flag, passed_iterations)
+    shared(generator, b, cont, start, cancel_flag, passed_iterations, total_hits)
     {
         auto private_gen = generator->clone();
         private_gen->setThread(omp_get_thread_num(), omp_get_num_threads());
@@ -177,9 +176,10 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
         size_t hits                = 0;
         bool   private_cancel_flag = false;
 
-        for (; iter < b.iterations && !private_cancel_flag; iter++) {
+        while (!private_cancel_flag) {
             KeySequence seq = private_gen->getKey();
             for (lru_key_t key = seq.start_index; key < seq.start_index + seq.count; key++) {
+                iter++;
                 lru_value_t value;
                 lru_value_t expected_value = lru_value_t{{expected_payload, key}};
                 if (cont.consumeCachedOrCompute(key, Payload(b.payload_level, key), value)) {
@@ -189,24 +189,19 @@ void benchmark(RandomBenchmarkApp& b, Container& cont, CsvLogger& logger, int ti
                     std::cerr << "Wrong value: " << value << " != " << expected_value << std::endl;
                 }
 
-                if (iter % b.print_freq == 0) {
-                    if (omp_get_thread_num() == 0) {
-                        duration<double> dur = std::chrono::system_clock::now() - start;
-                        std::cout << int(dur.count()) << "s " << iter << '/' << b.iterations << " "
-                                  << time_limit << '\r' << std::flush;
-                        if (dur.count() > time_limit) {
+                if (omp_get_thread_num() == 0 && iter % b.print_freq == 0) {
+                    duration<double> dur = std::chrono::system_clock::now() - start;
+                    std::cout << int(dur.count()) << "/" << time_limit << "s " << iter << " iterations\r" << std::flush;
+                    if (dur.count() > time_limit) {
 #pragma omp atomic write
-                            cancel_flag         = true;
-                            private_cancel_flag = true;
-                            break;
-                        }
-                    } else {
-#pragma omp atomic read
-                        private_cancel_flag = cancel_flag;
-                        if (private_cancel_flag) {
-                            break;
-                        }
+                        cancel_flag         = true;
+                        private_cancel_flag = true;
                     }
+                }
+
+                if (omp_get_thread_num() != 0 && iter % (b.print_freq / 10) == 0) {
+#pragma omp atomic read
+                    private_cancel_flag = cancel_flag;
                 }
             }
         }
@@ -398,12 +393,7 @@ void traceBenchmark(TraceBenchmarkApp& b, Container& cont, TraceCsvLogger& logge
                 lru_value_t value;
                 lru_value_t expected_value{{key, key / 2}};
 
-                cont.consumeCachedOrCompute(
-                    key,
-                    [=] {
-                        return lru_value_t{{key, key}};
-                    },
-                    value);
+                cont.consumeCachedOrCompute(key, [=] { return lru_value_t{{key, key}}; }, value);
                 if (value != expected_value) {
                     std::cerr << "Wrong value: " << value << " != " << expected_value << std::endl;
                 }

@@ -22,7 +22,6 @@ int main(int argc, char* argv[]) {
         app.generator        = "normal";
         app.payload_level    = 20;
         app.threads          = 6;
-        app.iterations       = 100000000;
         app.print_freq       = 10000;
         app.is_item_capacity = true;
         app.capacity         = 1024;

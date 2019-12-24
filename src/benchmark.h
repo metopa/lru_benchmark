@@ -26,7 +26,6 @@ struct RandomBenchmarkApp {
     std::string backend;
     int         payload_level;
     unsigned    threads;
-    size_t      iterations;
     bool        limit_max_key;
     bool        is_item_capacity;
     size_t      capacity;
