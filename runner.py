@@ -25,10 +25,10 @@ CURRENT_TEST = 'NA'
 def main():
     traces_all = load_traces(Path('traces'))
     traces_main = [find_trace(traces_all, 'wiki'), find_trace(traces_all, 'P4'), find_trace(traces_all, 'P8')]
-    threads_full = [1, 4, 8, 16, 24, 32, 48, 64]
-    threads_64 = [64, 80, 96]
-    threads_main = [1, 16, 64]
-    threads_short = [1, 64]
+    threads_full = [1, 4, 8, 16, 24, 32]
+    threads_96 = [32, 64, 96]
+    threads_main = [1, 16, 32]
+    threads_short = [1, 32]
     optimal_pull = 0.7
     optimal_push = 0.7
 
@@ -39,7 +39,7 @@ def main():
                                         threads_full, FAST_CONTAINERS,
                                         optimal_pull, optimal_push)),
         'speedup96': (lambda: scalability(traces_main, capacity_main,
-                                          threads_64, BINNED_LRU_CONTAINERS,
+                                          threads_96, BINNED_LRU_CONTAINERS,
                                           optimal_pull, optimal_push)),
         'perf': (lambda: scalability(traces_all, capacity_main,
                                      threads_main, LRU_CONTAINERS,
