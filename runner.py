@@ -96,7 +96,7 @@ def preflight_check(traces, containers, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
-    print(f'{"#" * 25}\n#### f{CURRENT_TEST:^15} ####\n{"#" * 25}')
+    print(f'{"#" * 25}\n#### {CURRENT_TEST:^15} ####\n{"#" * 25}')
 
     app = BenchmarkApp(log_file=log_file, run_info=VERSION, print_freq=1000000,
                        pull_threshold=0.6, purge_threshold=0.6, time_limit=5)
@@ -291,7 +291,7 @@ class BenchmarkApp:
         except subprocess.CalledProcessError as e:
             print(e, file=os.stderr)
         except KeyboardInterrupt:
-            print('Do you want to [r]estart, [s]kip or [e]xit? ')
+            print(f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
             while True:
                 choice = input()
                 if choice == 's':
