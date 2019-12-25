@@ -132,7 +132,7 @@ class TraceGenerator final : public KeyGenerator {
         : trace_name_(traceName), trace_(std::make_shared<const Trace>(readTrace(trace_name_))),
           thread_id_(0), thread_count_(1), current_index_(0) {}
 
-    std::string name() const override { return "trace:" + trace_name_; }
+    std::string name() const override { return trace_name_; }
 
     ptr_t clone() const override { return std::make_shared<TraceGenerator>(*this); }
 

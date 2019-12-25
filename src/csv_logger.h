@@ -70,7 +70,7 @@ class CsvLogger {
 
   private:
     void print_header(std::ostream& stream) {
-        stream << "test_name, test_tag, generator, container, "
+        stream << "test_name, test_tag, trace, container, "
                   //"available_memory, "
                   "capacity, "
                   //"iterations, "

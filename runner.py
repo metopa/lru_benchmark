@@ -44,7 +44,12 @@ def main():
         'perf': (lambda: scalability(traces_all, capacity_main,
                                      threads_main, LRU_CONTAINERS,
                                      optimal_pull, optimal_push)),
-        'meta': (lambda: meta_parameters(traces_main, capacity_main, threads_short)),
+        'meta': (lambda: meta_parameters(traces_main, capacity_main, threads_short, True,
+                                         [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
+                                         [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
+        'meta2': (lambda: meta_parameters(traces_main, capacity_main, threads_short, False,
+                                          [0.75, 0.8, 0.9, 0.99],
+                                          [0.75, 0.8, 0.9, 0.99])),
         'preflight': (lambda: preflight_check(traces_all, ALL_CONTAINERS))
     }
 
@@ -113,7 +118,7 @@ def preflight_check(traces, containers, log_file=None):
     ])
 
 
-def meta_parameters(traces, capacity_factors, threads, reps=2, log_file=None):
+def meta_parameters(traces, capacity_factors, threads, reference, pull_step, purge_steps, reps=2, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
@@ -121,33 +126,32 @@ def meta_parameters(traces, capacity_factors, threads, reps=2, log_file=None):
 
     app = BenchmarkApp(log_file=log_file, run_info=VERSION, print_freq=1000000)
     trace_worklist = generate_trace_worklist(traces, capacity_factors)
-    steps = [0.001, 0.01, 0.1, 0.4, 0.7, 0.9]
 
     app.run([
         ('reps', [1]),
         (['generator', 'capacity'], trace_worklist[:1]),
         ('threads', threads[-1:]),
         ('backend', ['dummy']),
-        ('purge_threshold', steps[:1]),
-        ('pull_threshold', steps[:1]),
         ('time_limit', [20])
     ])
 
     app.time_limit = TIME_LIMIT
-    app.run([
-        ('reps', list(range(reps))),
-        (['generator', 'capacity'], trace_worklist),
-        ('threads', threads),
-        ('backend', ['lru', 'hhvm'])
-    ])
+
+    if reference:
+        app.run([
+            ('reps', list(range(reps))),
+            (['generator', 'capacity'], trace_worklist),
+            ('threads', threads),
+            ('backend', ['lru', 'hhvm'])
+        ])
 
     app.run([
         ('reps', list(range(reps))),
         (['generator', 'capacity'], trace_worklist),
         ('threads', threads),
         ('backend', ['deferred']),
-        ('purge_threshold', steps),
-        ('pull_threshold', steps)
+        ('purge_threshold', purge_steps),
+        ('pull_threshold', pull_step)
     ])
 
 
@@ -291,7 +295,8 @@ class BenchmarkApp:
         except subprocess.CalledProcessError as e:
             print(e, file=os.stderr)
         except KeyboardInterrupt:
-            print(f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
+            print(
+                f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
             while True:
                 choice = input()
                 if choice == 's':
