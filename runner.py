@@ -19,6 +19,7 @@ LRU_CONTAINERS = ALL_CONTAINERS[1:]
 FAST_CONTAINERS = ["lru", "concurrent", "deferred", "hhvm", "b_lru", "b_concurrent", "b_deferred"]
 BINNED_LRU_CONTAINERS = ALL_CONTAINERS[5:]
 DLRU_CONTAINERS = ["deferred", "b_deferred"]
+NODLRU_CONTAINERS = ["tbb_hash", "lru", "concurrent", "tbb", "hhvm", "b_lru", "b_concurrent"]
 CURRENT_TEST = 'NA'
 
 
@@ -35,22 +36,29 @@ def main():
     capacity_main = [10, 1000]
 
     benchmarks = {
-        'speedup': (lambda: scalability(traces_main, capacity_main,
-                                        threads_full, FAST_CONTAINERS,
-                                        optimal_pull, optimal_push)),
-        'speedup96': (lambda: scalability(traces_main, capacity_main,
-                                          threads_96, BINNED_LRU_CONTAINERS,
-                                          optimal_pull, optimal_push)),
-        'perf': (lambda: scalability(traces_all, capacity_main,
-                                     threads_main, LRU_CONTAINERS,
-                                     optimal_pull, optimal_push)),
-        'meta': (lambda: meta_parameters(traces_main, capacity_main, threads_short, True,
-                                         [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
-                                         [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
-        'meta2': (lambda: meta_parameters(traces_main, capacity_main, threads_short, False,
-                                          [0.75, 0.8, 0.9, 0.99],
-                                          [0.75, 0.8, 0.9, 0.99])),
-        'preflight': (lambda: preflight_check(traces_all, ALL_CONTAINERS))
+        'speedup': (lambda start: scalability(start, traces_main, capacity_main,
+                                              threads_full, FAST_CONTAINERS,
+                                              optimal_pull, optimal_push)),
+        'speedup96': (lambda start: scalability(start, traces_main, capacity_main,
+                                                threads_96, BINNED_LRU_CONTAINERS,
+                                                optimal_pull, optimal_push)),
+        'perf': (lambda start: scalability(start, traces_all, capacity_main,
+                                           threads_main, LRU_CONTAINERS,
+                                           optimal_pull, optimal_push)),
+        'perf_nodlru': (lambda start: scalability(start, traces_all, capacity_main,
+                                                  threads_main, NODLRU_CONTAINERS,
+                                                  optimal_pull, optimal_push)),
+        'meta': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, True,
+                                               [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
+                                               [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
+        'meta_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], capacity_main, threads_short,
+                                                  True, [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
+                                                  [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
+        'meta2': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, False,
+                                                [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
+        'meta2_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], capacity_main, threads_short,
+                                                   False, [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
+        'preflight': (lambda start: preflight_check(start, traces_all, ALL_CONTAINERS))
     }
 
     print('Available benchmarks:\n  ' + ' '.join(benchmarks.keys()))
@@ -59,18 +67,28 @@ def main():
     if not args:
         print('Not benchmark specified')
 
-    for a in args:
+    i = 0
+    worklist = []
+    while i < len(args):
+        if i + 1 < len(args) and args[i + 1].startswith('+'):
+            worklist.append((args[i], int(args[i + 1])))
+            i += 2
+        else:
+            worklist.append((args[i], 0))
+            i += 1
+
+    for a, first_test in worklist:
         assert a in benchmarks
 
-    for a in args:
+    for a, first_test in worklist:
         global CURRENT_TEST
         CURRENT_TEST = a
-        benchmarks[a]()
+        benchmarks[a](first_test)
 
     return
 
 
-def scalability(traces, capacity_factors, threads, containers, pull, purge, reps=3, log_file=None):
+def scalability(start, traces, capacity_factors, threads, containers, pull, purge, reps=3, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
@@ -94,10 +112,10 @@ def scalability(traces, capacity_factors, threads, containers, pull, purge, reps
         (['generator', 'capacity'], trace_worklist),
         ('threads', threads),
         ('backend', containers),
-    ])
+    ], start)
 
 
-def preflight_check(traces, containers, log_file=None):
+def preflight_check(start, traces, containers, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
@@ -118,7 +136,7 @@ def preflight_check(traces, containers, log_file=None):
     ])
 
 
-def meta_parameters(traces, capacity_factors, threads, reference, pull_step, purge_steps, reps=2, log_file=None):
+def meta_parameters(start, traces, capacity_factors, threads, reference, pull_step, purge_steps, reps=2, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
@@ -152,7 +170,7 @@ def meta_parameters(traces, capacity_factors, threads, reference, pull_step, pur
         ('backend', ['deferred']),
         ('purge_threshold', purge_steps),
         ('pull_threshold', pull_step)
-    ])
+    ], start)
 
 
 class Trace:
@@ -233,13 +251,13 @@ class BenchmarkApp:
         self.profile = profile
         print(colored(f'{log_file}|{run_name}|{run_info}', 'green', attrs=['bold']))
 
-    def run(self, overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]] = None):
+    def run(self, overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]] = None, start=0):
         total_count = reduce((lambda x, y: x * y), (len(o[1]) for o in overrides))
         progress = [0, total_count]
-        self.run_impl([], progress, overrides)
+        self.run_impl([], progress, overrides, start)
 
     def run_impl(self, changes, progress: List[int],
-                 overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]] = None):
+                 overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]], start):
 
         def wrap_list(x):
             return x if isinstance(x, list) else [x]
@@ -249,10 +267,17 @@ class BenchmarkApp:
         if not overrides:
             if progress:
                 progress[0] += 1
-                print(colored(f'\n[{progress[0]:>3}/{progress[1]}]>> ' + ', '.join(changes), 'blue', attrs=['bold']))
+                if progress[0] < start:
+                    print(colored(f'\n[{progress[0]:>3}/{progress[1]}]>> ' + ', '.join(changes),
+                                  'yellow', attrs=['bold']))
+                else:
+                    print(colored(f'\n[{progress[0]:>3}/{progress[1]}]>> ' + ', '.join(changes),
+                                  'blue', attrs=['bold']))
+                    self.execute_benchmark()
             else:
                 print(colored(f'\n>> ' + ', '.join(changes), 'blue', attrs=['bold']))
-            self.execute_benchmark()
+                self.execute_benchmark()
+
         else:
             this_level = overrides[0]
             if not isinstance(this_level[0], list):
@@ -261,11 +286,23 @@ class BenchmarkApp:
             for vv in values:
                 for k, v in zip(keys, vv):
                     setattr(self, k, v)
-                self.run_impl(changes + [f'{k}={v}' for k, v in zip(keys, vv)], progress, overrides[1:])
+                self.run_impl(changes + [f'{k}={v}' for k, v in zip(keys, vv)], progress, overrides[1:], start)
 
         self.__dict__ = old
 
     def execute_benchmark(self):
+        def ask_user():
+            print(
+                f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
+            while True:
+                choice = input()
+                if choice == 's':
+                    return True
+                elif choice == 'e':
+                    exit(1)
+                elif choice == 'r':
+                    return False
+
         args = [self.app_path,
                 '-L', self.log_file,
                 '-N', self.run_name,
@@ -274,7 +311,7 @@ class BenchmarkApp:
                 '-v',
                 '-B', self.backend,
                 '-t', self.threads,
-                '-c' if self.is_item_capacity else '-m', self.capacity,
+                '-c' if self.is_item_capacity else '-m', max(self.capacity, 4096),
                 '-q', self.print_freq,
                 '-p', self.payload_level,
                 '--pull-thrs', self.pull_threshold,
@@ -290,21 +327,23 @@ class BenchmarkApp:
 
         args = [str(a) for a in args]
         print('  >> ' + ' '.join(args))
-        try:
-            subprocess.run(args)
-        except subprocess.CalledProcessError as e:
-            print(e, file=os.stderr)
-        except KeyboardInterrupt:
-            print(
-                f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
-            while True:
-                choice = input()
-                if choice == 's':
+
+        while True:
+            try:
+                result = subprocess.run(args, timeout=TIME_LIMIT * 10)
+                if result.returncode != 0:
+                    print('Return code: ' + str(result.returncode))
+                    if ask_user():
+                        break
+                break
+            except subprocess.CalledProcessError as e:
+                print(e, file=os.stderr)
+            except subprocess.TimeoutExpired as e:
+                print("TIMEOUT")
+                if ask_user():
                     break
-                elif choice == 'e':
-                    exit(1)
-                elif choice == 'r':
-                    self.execute_benchmark()
+            except KeyboardInterrupt:
+                if ask_user():
                     break
 
 

@@ -265,6 +265,9 @@ class DeferredLRU : public ContainerBase<Config, DeferredLRU<Config>, true> {
         if (capacity == 0) {
             return;
         }
+        if (buckets_.size() < 4) {
+            throw std::runtime_error("Too small capacity");
+        }
         buckets_.assign(getBucketCountForCapacity(this->max_element_count_), BucketHead());
         bucket_locks_.reset(new lock_t[std::min(buckets_.size(), maxBucketLockSize())]);
         nodes_.reset(new Node[this->max_element_count_]);

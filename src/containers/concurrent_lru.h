@@ -129,6 +129,9 @@ class ConcurrentLRU : public ContainerBase<Config, ConcurrentLRU<Config, IgnoreB
         if (capacity == 0) {
             return;
         }
+        if (ht_.size() < 4) {
+            throw std::runtime_error("Too small capacity");
+        }
 
         ht_.assign(size_t((this->max_element_count_ + config::hashTableLoadFactor() - 1) /
                           config::hashTableLoadFactor()),

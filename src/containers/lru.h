@@ -110,6 +110,9 @@ class LRUCache : public ContainerBase<Config, LRUCache<Config, IgnoreBitsInHash>
 
         bucket_count_ = size_t(this->max_element_count_ / config::hashTableLoadFactor());
         storage_      = new Element[this->max_element_count_];
+        if (bucket_count_ < 4) {
+            throw std::runtime_error("Too small capacity");
+        }
 
         // init "empty" linked list
         lru_list_head_ = -1;
