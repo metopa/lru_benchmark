@@ -51,12 +51,12 @@ def main():
         'meta': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, True,
                                                [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
                                                [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
-        'meta_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], capacity_main, threads_short,
+        'meta_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], [1000], threads_short,
                                                   True, [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
                                                   [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
         'meta2': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, False,
                                                 [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
-        'meta2_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], capacity_main, threads_short,
+        'meta2_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], [1000], threads_short,
                                                    False, [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
         'preflight': (lambda start: preflight_check(start, traces_all, ALL_CONTAINERS))
     }

@@ -21,3 +21,6 @@ target_link_libraries(lru_benchmark PRIVATE tbb_static glog OpenMP::OpenMP_CXX)
 
 add_executable(lru_trace_benchmark src/trace_main.cpp src/key_generator.cpp src/benchmark.cpp)
 target_link_libraries(lru_trace_benchmark PRIVATE tbb_static glog OpenMP::OpenMP_CXX)
+
+add_executable(increment_test src/concurrent_increment_test.cpp)
+target_link_libraries(increment_test PRIVATE OpenMP::OpenMP_CXX)
