@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Sequence, Any, Tuple, Union, List, Dict, Optional, Callable
 from termcolor import colored
 
-TIME_LIMIT = 3
+TIME_LIMIT = 60
 
 REPS = list(range(1))
 VERSION = 'GCP1'
@@ -19,7 +19,7 @@ LRU_CONTAINERS = ALL_CONTAINERS[1:]
 FAST_CONTAINERS = ["lru", "concurrent", "deferred", "hhvm", "b_lru", "b_concurrent", "b_deferred"]
 BINNED_LRU_CONTAINERS = ALL_CONTAINERS[5:]
 DLRU_CONTAINERS = ["deferred", "b_deferred"]
-NODLRU_CONTAINERS = ["tbb_hash", "lru", "concurrent", "tbb", "hhvm", "b_lru", "b_concurrent"]
+NODLRU_CONTAINERS = ["lru", "concurrent", "tbb", "hhvm", "b_lru", "b_concurrent"]
 CURRENT_TEST = 'NA'
 
 
