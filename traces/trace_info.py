@@ -48,8 +48,9 @@ def list_all(path):
 
 
 @commands.command(help='Get info about single trace')
+@click.option('--latex/--no-latex', default=False)
 @click.argument('filename')
-def stat(filename):
+def stat(filename, latex):
     trace = Trace(Path(filename))
     n = trace.requests - trace.unique
 
@@ -67,11 +68,16 @@ def stat(filename):
     stddev = distances.std()
     median = int(np.median(distances))
 
-    print(f'{trace.filename.name}')
-    print(f'Requests/Targets: {trace.requests}/{trace.unique} '
-          f'[{trace.requests / trace.unique:.1f} R/T]')
-    print(f'Median distance:  {median}')
-    print(f'Mean distance:    {mean:.0f} ± {stddev:.0f} [RSD {stddev / mean:.3f}]')
+    if latex:
+        print(f'{trace.filename.name:<7} & {trace.requests:>8} & {trace.unique:>8} & '
+              f'{trace.requests/trace.unique:>5.2f} & {median:>7} & '
+              f'{mean:>7.0f} & {stddev:>7.0f} & {stddev/mean:>4.2f} \\\\')
+    else:
+        print(f'{trace.filename.name}')
+        print(f'Requests/Targets: {trace.requests}/{trace.unique} '
+              f'[{trace.requests / trace.unique:.2f} R/T]')
+        print(f'Median distance:  {median}')
+        print(f'Mean distance:    {mean:.0f} ± {stddev:.0f} [RSD {stddev / mean:.2f}]')
 
 
 if __name__ == '__main__':
