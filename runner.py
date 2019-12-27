@@ -1,14 +1,14 @@
+import copy
 import os
 import subprocess
 import sys
 from datetime import datetime
 import struct
-from functools import reduce
 from pathlib import Path
-from typing import Sequence, Any, Tuple, Union, List
+from typing import Sequence, Any, Tuple, Union, List, Dict, Optional, Callable
 from termcolor import colored
 
-TIME_LIMIT = 60
+TIME_LIMIT = 3
 
 REPS = list(range(1))
 VERSION = 'GCP1'
@@ -30,34 +30,26 @@ def main():
     threads_96 = [32, 64, 96]
     threads_main = [1, 16, 32]
     threads_short = [1, 32]
-    optimal_pull = 0.7
-    optimal_push = 0.7
+    pull_push = [(0, 0), (0.001, 0.1), (0.1, 0.7), (0.99, 0.99)]
 
     capacity_main = [10, 1000]
 
     benchmarks = {
         'speedup': (lambda start: scalability(start, traces_main, capacity_main,
-                                              threads_full, FAST_CONTAINERS,
-                                              optimal_pull, optimal_push)),
+                                              threads_full, FAST_CONTAINERS, pull_push)),
         'speedup96': (lambda start: scalability(start, traces_main, capacity_main,
-                                                threads_96, BINNED_LRU_CONTAINERS,
-                                                optimal_pull, optimal_push)),
+                                                threads_96, BINNED_LRU_CONTAINERS, pull_push)),
         'perf': (lambda start: scalability(start, traces_all, capacity_main,
-                                           threads_main, LRU_CONTAINERS,
-                                           optimal_pull, optimal_push)),
+                                           threads_main, LRU_CONTAINERS, pull_push)),
         'perf_nodlru': (lambda start: scalability(start, traces_all, capacity_main,
-                                                  threads_main, NODLRU_CONTAINERS,
-                                                  optimal_pull, optimal_push)),
+                                                  threads_main, NODLRU_CONTAINERS, pull_push)),
+        'perf_dlru': (lambda start: scalability(start, traces_all, capacity_main,
+                                                threads_main, DLRU_CONTAINERS, pull_push)),
         'meta': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, True,
                                                [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
                                                [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
-        'meta_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], [1000], threads_short,
-                                                  True, [0.001, 0.01, 0.1, 0.4, 0.7, 0.9],
-                                                  [0.001, 0.01, 0.1, 0.4, 0.7, 0.9])),
         'meta2': (lambda start: meta_parameters(start, traces_main, capacity_main, threads_short, False,
                                                 [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
-        'meta2_p8': (lambda start: meta_parameters(start, [find_trace(traces_all, 'P8')], [1000], threads_short,
-                                                   False, [0.75, 0.8, 0.9, 0.99], [0.75, 0.8, 0.9, 0.99])),
         'preflight': (lambda start: preflight_check(start, traces_all, ALL_CONTAINERS))
     }
 
@@ -88,31 +80,40 @@ def main():
     return
 
 
-def scalability(start, traces, capacity_factors, threads, containers, pull, purge, reps=3, log_file=None):
+def metaparam_filter(e: Dict) -> bool:
+    try:
+        if e['backend'] in DLRU_CONTAINERS:
+            return e['pull_threshold'] != 0 and e['purge_threshold'] != 0
+        return e['pull_threshold'] == 0 or e['purge_threshold'] == 0
+    except KeyError:
+        return True
+
+
+def scalability(start, traces, capacity_factors, threads, containers, pull_purge, reps=3, log_file=None):
     if log_file is None:
         log_file = CURRENT_TEST + '.csv'
 
     print(f'{"#" * 25}\n#### {CURRENT_TEST:^15} ####\n{"#" * 25}')
 
-    app = BenchmarkApp(log_file=log_file, run_info=VERSION, print_freq=1000000,
-                       pull_threshold=pull, purge_threshold=purge)
+    app = BenchmarkApp(log_file=log_file, run_info=VERSION, print_freq=1000000)
     trace_worklist = generate_trace_worklist(traces, capacity_factors)
 
     app.run([
         ('reps', [1]),
-        (['generator', 'capacity'], trace_worklist[:1]),
-        ('threads', threads[-1:]),
+        (('generator', 'capacity'), trace_worklist[:1]),
+        ('threads', threads[:1]),
         ('backend', ['dummy']),
         ('time_limit', [20])
-    ])
+    ], 0)
 
     app.time_limit = TIME_LIMIT
     app.run([
         ('reps', list(range(reps))),
-        (['generator', 'capacity'], trace_worklist),
+        (('generator', 'capacity'), trace_worklist),
         ('threads', threads),
         ('backend', containers),
-    ], start)
+        (('pull_threshold', 'purge_threshold'), pull_purge)
+    ], start, metaparam_filter)
 
 
 def preflight_check(start, traces, containers, log_file=None):
@@ -126,12 +127,12 @@ def preflight_check(start, traces, containers, log_file=None):
     trace_worklist = generate_trace_worklist(traces, [2])
 
     app.run([
-        (['generator', 'capacity'], trace_worklist),
+        (('generator', 'capacity'), trace_worklist),
         ('backend', ['dummy'])
     ])
 
     app.run([
-        (['generator', 'capacity'], trace_worklist[:1]),
+        (('generator', 'capacity'), trace_worklist[:1]),
         ('backend', containers)
     ])
 
@@ -147,30 +148,30 @@ def meta_parameters(start, traces, capacity_factors, threads, reference, pull_st
 
     app.run([
         ('reps', [1]),
-        (['generator', 'capacity'], trace_worklist[:1]),
+        (('generator', 'capacity'), trace_worklist[:1]),
         ('threads', threads[-1:]),
         ('backend', ['dummy']),
         ('time_limit', [20])
-    ])
+    ], filter_predicate=metaparam_filter)
 
     app.time_limit = TIME_LIMIT
 
     if reference:
         app.run([
             ('reps', list(range(reps))),
-            (['generator', 'capacity'], trace_worklist),
+            (('generator', 'capacity'), trace_worklist),
             ('threads', threads),
             ('backend', ['lru', 'hhvm'])
-        ])
+        ], filter_predicate=metaparam_filter)
 
     app.run([
         ('reps', list(range(reps))),
-        (['generator', 'capacity'], trace_worklist),
+        (('generator', 'capacity'), trace_worklist),
         ('threads', threads),
         ('backend', ['deferred']),
         ('purge_threshold', purge_steps),
         ('pull_threshold', pull_step)
-    ], start)
+    ], start, filter_predicate=metaparam_filter)
 
 
 class Trace:
@@ -197,7 +198,7 @@ def generate_trace_worklist(traces, capacity_factors):
     result = []
     for t in traces:
         for f in capacity_factors:
-            result.append([str(t.filename), t.unique_requests // f])
+            result.append((str(t.filename), t.unique_requests // f))
 
     return result
 
@@ -207,6 +208,10 @@ def find_trace(traces, name):
     if len(res) != 1:
         raise RuntimeError(f'Trace name {name} is ambiguous')
     return res[0]
+
+
+SimpleOverride = Tuple[str, List[Any]]
+CompoundOverride = Tuple[Tuple[str, ...], List[Tuple[Any, ...]]]
 
 
 class BenchmarkApp:
@@ -251,49 +256,50 @@ class BenchmarkApp:
         self.profile = profile
         print(colored(f'{log_file}|{run_name}|{run_info}', 'green', attrs=['bold']))
 
-    def run(self, overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]] = None, start=0):
-        total_count = reduce((lambda x, y: x * y), (len(o[1]) for o in overrides))
-        progress = [0, total_count]
-        self.run_impl([], progress, overrides, start)
+    def run(self, overrides: Sequence[Union[SimpleOverride, CompoundOverride]] = None, start=0,
+            filter_predicate: Optional[Callable[[Dict], bool]] = None):
+        if overrides is None:
+            self.execute_benchmark()
+            return
 
-    def run_impl(self, changes, progress: List[int],
-                 overrides: Sequence[Tuple[Union[str, List[str]], Union[List[Any], List[List[Any]]]]], start):
+        experiments = list(self.generate_experiments(overrides, {}))
+        if filter_predicate:
+            experiments = list(filter(filter_predicate, experiments))
 
-        def wrap_list(x):
-            return x if isinstance(x, list) else [x]
+        old = copy.deepcopy(self.__dict__)
 
-        old = self.__dict__
-
-        if not overrides:
-            if progress:
-                progress[0] += 1
-                if progress[0] < start:
-                    print(colored(f'\n[{progress[0]:>3}/{progress[1]}]>> ' + ', '.join(changes),
-                                  'yellow', attrs=['bold']))
-                else:
-                    print(colored(f'\n[{progress[0]:>3}/{progress[1]}]>> ' + ', '.join(changes),
-                                  'blue', attrs=['bold']))
-                    self.execute_benchmark()
+        for i, e in enumerate(experiments):
+            for k, v in e.items():
+                setattr(self, k, v)
+            e_str = ', '.join(f'{k}={v}' for k, v in e.items())
+            if i < start:
+                print(colored(f'\n[{i + 1:>3}/{len(experiments)}]>> {e_str}', 'yellow', attrs=['bold']))
             else:
-                print(colored(f'\n>> ' + ', '.join(changes), 'blue', attrs=['bold']))
+                print(colored(f'\n[{i + 1:>3}/{len(experiments)}]>> {e_str}', 'blue', attrs=['bold']))
                 self.execute_benchmark()
 
-        else:
-            this_level = overrides[0]
-            if not isinstance(this_level[0], list):
-                this_level = ([this_level[0]], [[x] for x in wrap_list(this_level[1])])
-            keys, values = this_level
-            for vv in values:
-                for k, v in zip(keys, vv):
-                    setattr(self, k, v)
-                self.run_impl(changes + [f'{k}={v}' for k, v in zip(keys, vv)], progress, overrides[1:], start)
-
         self.__dict__ = old
+
+    def generate_experiments(self, overrides: Sequence[Union[SimpleOverride, CompoundOverride]],
+                             accumulator: Dict[str, Any]):
+        if not overrides:
+            yield copy.deepcopy(accumulator)
+        else:
+            kk, vv = overrides[0]
+            if isinstance(kk, str):
+                kk = (kk,)
+                vv = [(v,) for v in vv]
+
+            for v in vv:
+                for k, x in zip(kk, v):
+                    accumulator[k] = x
+                yield from self.generate_experiments(overrides[1:], accumulator)
 
     def execute_benchmark(self):
         def ask_user():
             print(
-                f'Do you want to {colored("[r]estart", "yellow")}, {colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
+                f'Do you want to {colored("[r]estart", "yellow")}, '
+                f'{colored("[s]kip", "blue")} or {colored("[e]xit", "red")}? ')
             while True:
                 choice = input()
                 if choice == 's':
