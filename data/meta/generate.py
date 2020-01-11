@@ -30,21 +30,38 @@ def premultiply_hitrate(folder):
         premultiply_hitrate_file(str(f))
 
 
-def get_cmd(script_file, data_file, cbcount=5):
+def get_cmd(script_file, data_file, title, cbcount=5):
     data = load_data(data_file)
     min_value, max_value = min(data), max(data)
     step = (max_value - min_value) / (cbcount - 1)
     max_value += step / 1000
 
-    return ['gnuplot', '-e', f'input_file=\'{data_file}\'', '-e', f'output_file=\'{data_file.replace(".tsv", ".eps")}\'',
-            '-e', f'data_min=\'{min_value:.5f}\'', '-e', f'data_step=\'{step:.6f}\'','-e', f'data_max=\'{max_value:.5f}\'', script_file]
+    return ['gnuplot', 
+            '-e', f'input_file=\'{data_file}\'', 
+            '-e', f'plot_title=\'{title}\'', 
+            '-e', f'output_file=\'{data_file.replace(".tsv", ".eps")}\'',
+            '-e', f'data_min=\'{min_value:.5f}\'', 
+            '-e', f'data_step=\'{step:.6f}\'',
+            '-e', f'data_max=\'{max_value:.5f}\'', 
+            script_file]
 
 def process_folder(folder):
     folder = Path(folder)
 
     for f in folder.glob('*.tsv'):
         script = 'meta-hitrate.gnuplot' if 'p.tsv' in str(f) else 'meta.gnuplot'
-        cmd = get_cmd(script, str(f))
+        TITLES = [('p4_1000_', 'P4 1/1000'), ('p4_10_', 'P4 1/10'), 
+                  ('wiki_1000_', 'Wikipedia 1/1000'), ('wiki_10_', 'Wikipedia 1/10'),
+                  ('p8_238_', 'P8 1/238'), ('p8_10_', 'P8 1/10')]
+
+        for b, t in TITLES:
+            if f.name.startswith(b):
+                title = t
+                break
+        else:
+            print('Unknown title for ' + f.name)
+            title = ''
+        cmd = get_cmd(script, str(f), title)
         #print(' '.join(cmd))
         subprocess.run(cmd)
 

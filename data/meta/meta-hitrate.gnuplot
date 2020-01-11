@@ -1,3 +1,4 @@
+set title plot_title
 set term postscript eps enhanced font "Times-Roman,36"
 # set term wxt enhanced font "Times-Roman,18"
 
